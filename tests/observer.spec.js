@@ -53,7 +53,7 @@ describe("Проверка базовой функциональности на�
             console.log('update field name', value);
         });
 
-        observer.onUpdate(fakeUpdateCb)
+        observer.onUpdate(fakeUpdateCb);
         observer.onUpdate('name', fakeFieldUpdateCb);
 
         observer.set('name', 2);
