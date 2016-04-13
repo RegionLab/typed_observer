@@ -5,7 +5,7 @@ export default {
     getValue(value) {
         return +value;
     },
-    getPureValue() {
+    getPureValue(value) {
         return +value;
     }
 }
