@@ -7,7 +7,7 @@ const isDev = NODE_ENV == 'development';
 
 module.exports = {
     entry: {
-        app: ['./src/index.js'],
+        app: ['babel-polyfill', './src/index.js'],
     },
     include: [path.resolve(__dirname, 'src')],
     output: {

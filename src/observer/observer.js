@@ -4,7 +4,9 @@ import {
     isUndefined,
     each,
     defer,
+    remove,
 } from 'lodash';
+import AnyType from '../types/any.js';
 
 /**
  * @namespace Observer
@@ -28,11 +30,8 @@ export default class Observer {
          * @type {Array<Observer~updateCallback>}
          * */
         this.updateCbs = [];
-        /**
-         * @desc список блокировок обновлений, блокировка ставится только на общие обновления
-         * @type {Array}
-         * */
-        this.locks = [];
+
+        this.fieldSettings = new Map();
         /**
          * @desc идентификатор версии
          * @type {number}
@@ -48,37 +47,125 @@ export default class Observer {
          * @type {number}
          * */
         this.dataHandlers = new Map();
+
+        this.frozen = false;
+    }
+
+    /**
+     * Проверка является ли свойство замороженным
+     * @param {string} name - имя поля
+     * @return {boolean}
+     * */
+    isFrozen(name) {
+        var settings = this.fieldSettings.get(name);
+        return settings.frozen;
+    }
+
+    /**
+     * Заморозка поля или фильтра в общем
+     * Если функция вызывается с аргументов, то считается что идет попытка заморозки поля
+     * Иначе замараживается весь наблюдатель
+     * @param {string} name - имя поля для заморозки
+     * @return {Observer}
+     * */
+    freeze(name) {
+        if(name) {
+            if(this.has(name) && !this.isFrozen(name)) {
+                var settings = this.fieldSettings.get(name);
+                settings.frozen = true;
+            }
+        } else {
+            this.frozen = true;
+        }
+
+        return this;
+    }
+
+    /**
+     * Разморозка поля
+     * */
+    defreeze(name) {
+        if(name) {
+            if(this.has(name) && this.isFrozen(name)) {
+                var settings = this.fieldSettings.get(name);
+                settings.frozen = false;
+            }
+        } else {
+            this.frozen = false;
+        }
+
+        return this;
     }
 
     /**
      * @param {string} name - имя поля
      * @param {object} type - описание типа поля
-     * @param {*} defaultValue - дефолтное значение для поля
+     * @param {*} defaultValue - дефолтное значение для поля(Если функция, то она будет вызываться для получения значения)
      * */
     define(name, type, defaultValue) {
-        if(name && isObject(type)) {
-            if(!isUndefined(defaultValue)) {
-                this.defaultValues[name] = isFunction(defaultValue) ? defaultValue : type.getPureValue(defaultValue);
-            }
-            Object.defineProperty(this.data, {
-                configurable: true,
-                enumerable: true,
-                get() {
-                    return this.dataValues[name];
-                },
-                set(value) {
-                    if(type.isValid(value)) {
-                        value =  type.getValue(value);
-                        if(this.dataValues[name] != value) {
-                            this.dataValues[name] = value
+        if(!this.fieldSettings.has(name)) {
+            type = type || AnyType;
+            if(name && isObject(type)) {
+                this.dataValues[name] = void 0;
+                var settings = {};
+                this.fieldSettings.set(name, settings);
+                if(!isUndefined(defaultValue)) {
+                    settings.defaultValue = isFunction(defaultValue) ? defaultValue : type.getPureValue(defaultValue);
+                }
+                var self = this;
+                Object.defineProperty(this.data, name, {
+                    configurable: true,
+                    enumerable: true,
+                    get: function () {
+                        return self.dataValues[name];
+                    },
+                    set: function(value) {
+                        if(!self.frozen && !self.isFrozen(name)) {
+                            if(type.isValid(value)) {
+                                value =  type.getValue(value);
+                                if(self.dataValues[name] != value) {
+                                    self.dataValues[name] = value;
+                                    self.extendUpdate(name);
+                                }else {
+                                    console.warn('OBSERVER', name, 'not changed');
+                                }
+                            } else {
+                                console.warn('OBSERVER', name, 'not valid');
+                            }
+                        } else {
+                            console.warn('OBSERVER', name, 'observer is frozen');
                         }
                     }
-                }
+                })
+            }
+        }
+    }
+
+    /**
+     * Сброс значения свйоства
+     * Если указано имя свойства, то происходит сброс до дефолтного значения этого свойтсва.
+     * Если имя не указано, то происходит сброс до дефолтного состояния
+     * @param {string} name - Имя поля
+     * @return {Observer}
+     * */
+    reset(name) {
+        if(name) {
+            if(this.has(name) && !this.isFrozen(name)) {
+                var settings = this.fieldSettings.get(name);
+                this.data[name] = settings.defaultValue;
+            }
+        } else {
+            var keys = Object.keys(this.data);
+            each(keys, (key) => {
+                var settings = this.fieldSettings.get(key);
+                this.data[key] = settings.defaultValue;
             })
         }
     }
 
     /**
+     * Устанавливает значение поля
+     *
      * @param {string} name - имя поля
      * @param {*} value - имя поля
      * @return {Observer} this
@@ -108,7 +195,7 @@ export default class Observer {
      * @return {boolean}
      * */
     has(name) {
-        return !isUndefined(this.data[name]);
+        return this.data.hasOwnProperty(name);
     }
     /**
      * Удаление поля
@@ -117,10 +204,10 @@ export default class Observer {
      * */
     delete(name) {
         if(this.has(name)) {
-            delete this.data[name];
-            delete this.dataValues[name];
-            delete this.defaultValues[name];
-            this.dataHandlers.delete(name);
+            delete this.data[name]; // уаление хэндлера поля
+            delete this.dataValues[name]; // удаление значения поля
+            this.fieldSettings.delete(name);
+            this.dataHandlers.delete(name); // удаление колбеков привязанных к изменению поля
         }
         return this;
     }
