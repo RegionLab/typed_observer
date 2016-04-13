@@ -48,7 +48,9 @@ export default class Observer {
          * */
         this.dataHandlers = new Map();
 
-        this.frozen = false;
+        this._frozen = false;
+
+        this._lock = false;
     }
 
     /**
@@ -57,8 +59,11 @@ export default class Observer {
      * @return {boolean}
      * */
     isFrozen(name) {
-        var settings = this.fieldSettings.get(name);
-        return settings.frozen;
+        if(name) {
+            var settings = this.getFieldSettings(name);
+            return settings.frozen;
+        }
+        return null;
     }
 
     /**
@@ -71,14 +76,21 @@ export default class Observer {
     freeze(name) {
         if(name) {
             if(this.has(name) && !this.isFrozen(name)) {
-                var settings = this.fieldSettings.get(name);
+                var settings = this.getFieldSettings(name);
                 settings.frozen = true;
             }
         } else {
-            this.frozen = true;
+            this._frozen = true;
         }
 
         return this;
+    }
+
+    setDefaultValue(name, value) {
+        if(name && this.has(name)) {
+            var settings = this.getFieldSettings(name);
+            settings.defaultValue = value;
+        }
     }
 
     /**
@@ -87,11 +99,11 @@ export default class Observer {
     defreeze(name) {
         if(name) {
             if(this.has(name) && this.isFrozen(name)) {
-                var settings = this.fieldSettings.get(name);
+                var settings = this.getFieldSettings(name);
                 settings.frozen = false;
             }
         } else {
-            this.frozen = false;
+            this._frozen = false;
         }
 
         return this;
@@ -106,12 +118,18 @@ export default class Observer {
         if(!this.fieldSettings.has(name)) {
             type = type || AnyType;
             if(name && isObject(type)) {
-                this.dataValues[name] = void 0;
+
+                // Инициализируем настройки
                 var settings = {};
                 this.fieldSettings.set(name, settings);
+                settings.type = type;
+
+                // Получаем дефолтное значение
                 if(!isUndefined(defaultValue)) {
                     settings.defaultValue = isFunction(defaultValue) ? defaultValue : type.getPureValue(defaultValue);
                 }
+                this.dataValues[name] = settings.defaultValue;
+
                 var self = this;
                 Object.defineProperty(this.data, name, {
                     configurable: true,
@@ -120,7 +138,7 @@ export default class Observer {
                         return self.dataValues[name];
                     },
                     set: function(value) {
-                        if(!self.frozen && !self.isFrozen(name)) {
+                        if(!self._frozen && !self.isFrozen(name)) {
                             if(type.isValid(value)) {
                                 value =  type.getValue(value);
                                 if(self.dataValues[name] != value) {
@@ -137,6 +155,7 @@ export default class Observer {
                         }
                     }
                 })
+
             }
         }
     }
@@ -151,7 +170,7 @@ export default class Observer {
     reset(name) {
         if(name) {
             if(this.has(name) && !this.isFrozen(name)) {
-                var settings = this.fieldSettings.get(name);
+                var settings = this.getFieldSettings(name);
                 this.data[name] = settings.defaultValue;
             }
         } else {
@@ -237,35 +256,71 @@ export default class Observer {
             cbs.push(cb);
         }
     }
-    /**
-     * @callback Observer~updateCallback
-     * @param {*} value - значение
-     * */
 
+    /**
+     * Передает объект приемник значений.
+     * */
     getValues() {
         return this.data
     }
 
+    getFieldSettings(name) {
+        if(name) {
+            return this.fieldSettings.get(name);
+        }
+    }
+
+    lockUpdate(name) {
+        if(name) {
+            if(this.has(name)) {
+                var settings = this.getFieldSettings(name);
+                settings.lockUpdate = true;
+            }
+        } else {
+            this._lock = true;
+        }
+    }
+
+    unlockUpdate(name) {
+        if(name) {
+            if(this.has(name)) {
+                var settings = this.getFieldSettings(name);
+                settings.lockUpdate = false;
+            }
+        } else {
+            this._lock = false;
+        }
+    }
+
     /**
      * Рассылка обновлений
+     * @param {string} name - имя измененного свойства
+     * @return {Observer} this
      * */
     extendUpdate(name) {
-        if(name) {
-            if(this.dataHandlers.has(name)) {
-                var cbs = this.dataHandlers.get(name);
-                /**
-                 * @callback Observer~updateCallback
-                 * @param {*} value - значение
-                 * */
-                each(cbs, (cb) => {
-                    defer(cb, this.get(name), this.data);
-                })
+        if(!this._lock) {
+            if(name) {
+                var settings = this.getFieldSettings(name);
+                if(!settings.lockUpdate && this.dataHandlers.has(name)) {
+                    var cbs = this.dataHandlers.get(name);
+                    /**
+                     * @callback Observer~updateCallback
+                     * @param {*} value - значение
+                     * */
+                    each(cbs, (cb) => {
+                        defer(cb, this.get(name), this.data);
+                    })
+                }
+                each()
             }
-            each()
+            each(this.updateCbs, (cb) => {
+                defer(cb, this.data);
+            });
+        } else {
+            console.warn('OBSERVER IS LOCK');
         }
-        each(this.updateCbs, (cb) => {
-            defer(cb, this.data);
-        })
+
+        return this;
     }
 
 }

@@ -10,12 +10,12 @@
  * */
 export default {
     isValid(value) {
-        return !isNaN(+value)
+        return !isNaN(parseInt(value))
     },
     getValue(value) {
-        return +value;
+        return parseInt(value);
     },
     getPureValue(value) {
-        return +value;
+        return parseInt(value);
     }
 }

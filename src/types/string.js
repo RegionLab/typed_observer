@@ -8,9 +8,9 @@ export default {
         return isString(value);
     },
     getValue(value) {
-        return value+"";
+        return value;
     },
     getPureValue(value) {
-        return value+"";
+        return value;
     }
 }
