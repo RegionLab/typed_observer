@@ -2,17 +2,51 @@ import {
     isObject,
     isFunction,
     isUndefined,
-    each
+    each,
+    defer,
 } from 'lodash';
+
+/**
+ * @namespace Observer
+ * */
 
 export default class Observer {
     constructor() {
+        /**
+         * @desc объект для хранения значений
+         * @type {Object}
+         * */
         this.dataValues = {};
+
+        /**
+         * @desc объект для принятия значения
+         * @type {Object}
+         * */
         this.data = {};
+        /**
+         * @desc список колбеков вызываемых при обновлении любого свойства
+         * @type {Array<Observer~updateCallback>}
+         * */
         this.updateCbs = [];
+        /**
+         * @desc список блокировок обновлений, блокировка ставится только на общие обновления
+         * @type {Array}
+         * */
         this.locks = [];
+        /**
+         * @desc идентификатор версии
+         * @type {number}
+         * */
         this.filterVersion = 0;
+        /**
+         * @desc дефолтные значения
+         * @type {number}
+         * */
         this.defaultValues = {};
+        /**
+         * @desc карта для хранения список колбеков
+         * @type {number}
+         * */
         this.dataHandlers = new Map();
     }
 
@@ -100,25 +134,51 @@ export default class Observer {
      * Навешивает обработчик на обновления.
      * Если первым аргументов передается строка, то считаем что навешиваем обработчик на одно свойство,
      * Иначе считаем что обработчик навешивается на любое обновления.
-     * @param {string|function} name - имя поля или функция обработчик
-     * @param {function} cb - обработчик изменения поля
+     * @param {string|Observer~updateCallback} name - имя поля или функция обработчик
+     * @param {Observer~updateCallback} cb - обработчик изменения поля
      * @return {Observer} this
      * */
     onUpdate(name, cb) {
         if(isFunction(name)) {
             cb = name;
+            this.updateCbs.push(cb);
         } else {
             if(!this.dataHandlers.has(name)) {
                 this.dataHandlers.set(name, []);
             }
             var cbs = this.dataHandlers.get(name);
+            cbs.push(cb);
         }
     }
+    /**
+     * @callback Observer~updateCallback
+     * @param {*} value - значение
+     * */
 
-    extendUpdate(name, cb = false) {
-        if(!cb && isFunction(name)) {
+    getValues() {
+        return this.data
+    }
 
+    /**
+     * Рассылка обновлений
+     * */
+    extendUpdate(name) {
+        if(name) {
+            if(this.dataHandlers.has(name)) {
+                var cbs = this.dataHandlers.get(name);
+                /**
+                 * @callback Observer~updateCallback
+                 * @param {*} value - значение
+                 * */
+                each(cbs, (cb) => {
+                    defer(cb, this.get(name), this.data);
+                })
+            }
+            each()
         }
+        each(this.updateCbs, (cb) => {
+            defer(cb, this.data);
+        })
     }
 
 }
