@@ -208,6 +208,7 @@ export default class Observer {
                                 value =  type.getValue(value);
                                 if(self.dataValues[name] != value) {
                                     self.dataValues[name] = value;
+                                    self.filterVersion++;
                                     self.extendUpdate(name);
                                 }else {
                                     console.warn('OBSERVER', name, 'not changed');
@@ -324,6 +325,7 @@ export default class Observer {
                 settings.cbs.push(cb);
             }
         }
+        return this;
     }
 
     /**
@@ -373,16 +375,17 @@ export default class Observer {
     }
 
     /**
-     * Проверка
-     * @param {string} [name] - имя поля
-     * @return {Observer} this
+     * Проверка свойства на блокировку распространения обновления
+     * Если имя свойства не указано, то вернется результат проверка блокировки наблюдателя
+     * @param {string} [name] - имя свойства
+     * @return {boolean}
      * */
     isLockUpdate(name) {
         if(name) {
             var settings = this.getFieldSettings(name);
             return Boolean(settings.lockUpdate);
         }
-        return this._lock;
+        return Boolean(this._lock);
     }
 
     /**
@@ -412,6 +415,14 @@ export default class Observer {
         }
 
         return this;
+    }
+
+    destroy() {
+        for(var name in this.data) {
+            this.delete(name);
+        }
+        this.updateCbs.length = 0;
+        this.filterVersion = 0;
     }
 
 }
