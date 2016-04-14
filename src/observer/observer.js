@@ -1,4 +1,5 @@
 import {
+    isArray,
     isObject,
     isFunction,
     isUndefined,
@@ -6,10 +7,31 @@ import {
     defer,
     remove,
 } from 'lodash';
+
 import AnyType from '../types/any.js';
 
 /**
  * @namespace Observer
+ * */
+
+/**
+ * @typedef {object} Observer~FieldSettings
+ * @property {boolean} lockUpdate - Блокировка на вызов колбеков
+ * @property {boolean} frozen - заморозка свойства
+ * @property {boolean} required - обязательное поле
+ * @property {*} defaultValue - значение по умолчанию
+ * */
+
+/**
+ * @callback Observer~updateItemCallback
+ * @param {*} value - значение
+ * @param {object} data - хендлер для принятия значений
+ * */
+
+/**
+ * @callback Observer~updateCallback
+ * @param {object} data - хендлер для принятия значений
+ * @return {undefined}
  * */
 
 export default class Observer {
@@ -31,22 +53,16 @@ export default class Observer {
          * */
         this.updateCbs = [];
 
+        /**
+         * @type {Map}
+         * @desc карта для хранения настроек полей
+         * */
         this.fieldSettings = new Map();
         /**
          * @desc идентификатор версии
          * @type {number}
          * */
         this.filterVersion = 0;
-        /**
-         * @desc дефолтные значения
-         * @type {number}
-         * */
-        this.defaultValues = {};
-        /**
-         * @desc карта для хранения список колбеков
-         * @type {number}
-         * */
-        this.dataHandlers = new Map();
 
         this._frozen = false;
 
@@ -55,7 +71,7 @@ export default class Observer {
 
     /**
      * Проверка является ли свойство замороженным
-     * @param {string} name - имя поля
+     * @param {string} [name] - имя поля
      * @return {boolean}
      * */
     isFrozen(name) {
@@ -63,14 +79,14 @@ export default class Observer {
             var settings = this.getFieldSettings(name);
             return settings.frozen;
         }
-        return null;
+        return this._frozen;
     }
 
     /**
      * Заморозка поля или фильтра в общем
      * Если функция вызывается с аргументов, то считается что идет попытка заморозки поля
      * Иначе замараживается весь наблюдатель
-     * @param {string} name - имя поля для заморозки
+     * @param {string} [name] - имя поля для заморозки
      * @return {Observer}
      * */
     freeze(name) {
@@ -86,15 +102,26 @@ export default class Observer {
         return this;
     }
 
+    /**
+     * Установка дефолтного значения для свойства
+     * @param {string} name - имя свойства
+     * @param {*} value - дефолтное значение
+     * */
     setDefaultValue(name, value) {
         if(name && this.has(name)) {
             var settings = this.getFieldSettings(name);
-            settings.defaultValue = value;
+            if(settings.type.isValid(value)) {
+                settings.defaultValue = value;
+            } else {
+                console.error('Observer', name, 'Значение не валидно');
+            }
         }
     }
 
     /**
      * Разморозка поля
+     * @param {string} [name] - имя свойства
+     * @return {Observer} this
      * */
     defreeze(name) {
         if(name) {
@@ -110,25 +137,63 @@ export default class Observer {
     }
 
     /**
+     * Проверка валидности данных исходя из правил валидации.
+     * Если значение поля не валидно, то если поле является обязательным данные считаются невалидными.
+     * @return {boolean}
+     * */
+    isValid() {
+        for(var i in this.data) {
+            if(this.has(i)) {
+                var settings = this.getFieldSettings(i);
+                var value = this.get(i);
+                if(!settings.type.isValid(value) && settings.required) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Сериализует полученные данные исходя из настроек поля
+     * @return {object} - объект с сериализованными данными
+     * */
+    serialize() {
+        var ret = {};
+        for(var i in this.data) {
+            if(this.has(i)) {
+                var settings = this.getFieldSettings(i);
+                var value = this.get(i);
+                if(!settings.type.isValid(value) && settings.required) {
+                    return {};
+                }
+                ret[i] = settings.type.getPureValue(value);
+            }
+        }
+    }
+
+    /**
      * @param {string} name - имя поля
      * @param {object} type - описание типа поля
-     * @param {*} defaultValue - дефолтное значение для поля(Если функция, то она будет вызываться для получения значения)
+     * @param {Observer~FieldSettings} [settings] - дефолтное значение для поля(Если функция, то она будет вызываться для получения значения)
      * */
-    define(name, type, defaultValue) {
+    define(name, type, settings) {
         if(!this.fieldSettings.has(name)) {
             type = type || AnyType;
             if(name && isObject(type)) {
 
                 // Инициализируем настройки
-                var settings = {};
-                this.fieldSettings.set(name, settings);
-                settings.type = type;
-
-                // Получаем дефолтное значение
-                if(!isUndefined(defaultValue)) {
-                    settings.defaultValue = isFunction(defaultValue) ? defaultValue : type.getPureValue(defaultValue);
+                var settings = settings || {};
+                if(settings.type) {
+                    type = settings.type;
+                } else {
+                    settings.type = type;
                 }
-                this.dataValues[name] = settings.defaultValue;
+
+                this.dataValues[name] = isFunction(settings.defaultValue) ? settings.defaultValue() : settings.defaultValue;
+
+                this.fieldSettings.set(name, settings);
+
 
                 var self = this;
                 Object.defineProperty(this.data, name, {
@@ -164,7 +229,7 @@ export default class Observer {
      * Сброс значения свйоства
      * Если указано имя свойства, то происходит сброс до дефолтного значения этого свойтсва.
      * Если имя не указано, то происходит сброс до дефолтного состояния
-     * @param {string} name - Имя поля
+     * @param {string} [name] - Имя поля
      * @return {Observer}
      * */
     reset(name) {
@@ -198,14 +263,17 @@ export default class Observer {
 
     /**
      * Получение значения поля
-     * @param {string} name - имя поля
+     * @param {string} [name] - имя поля
      * @return {*|null} значение поля, если поля нет, то вернется null
      * */
     get(name) {
-        if(this.data[name]) {
-            return this.data[name];
+        if(name) {
+            if(this.data[name]) {
+                return this.data[name];
+            }
+            return null;
         }
-        return null;
+        return this.data;
     }
 
     /**
@@ -222,11 +290,10 @@ export default class Observer {
      * @return {Observer} this
      * */
     delete(name) {
-        if(this.has(name)) {
+        if(name && this.has(name)) {
             delete this.data[name]; // уаление хэндлера поля
             delete this.dataValues[name]; // удаление значения поля
             this.fieldSettings.delete(name);
-            this.dataHandlers.delete(name); // удаление колбеков привязанных к изменению поля
         }
         return this;
     }
@@ -241,7 +308,7 @@ export default class Observer {
      * Если первым аргументов передается строка, то считаем что навешиваем обработчик на одно свойство,
      * Иначе считаем что обработчик навешивается на любое обновления.
      * @param {string|Observer~updateCallback} name - имя поля или функция обработчик
-     * @param {Observer~updateCallback} cb - обработчик изменения поля
+     * @param {Observer~updateCallback|Observer~updateItemCallback} [cb] - обработчик изменения поля
      * @return {Observer} this
      * */
     onUpdate(name, cb) {
@@ -249,27 +316,33 @@ export default class Observer {
             cb = name;
             this.updateCbs.push(cb);
         } else {
-            if(!this.dataHandlers.has(name)) {
-                this.dataHandlers.set(name, []);
+            if(this.has(name)) {
+                var settings  = this.getFieldSettings(name);
+                if(!settings.cbs) {
+                    settings.cbs = [];
+                }
+                settings.cbs.push(cb);
             }
-            var cbs = this.dataHandlers.get(name);
-            cbs.push(cb);
         }
     }
 
     /**
-     * Передает объект приемник значений.
+     * Получение настроек свойства
+     * @param {string} name - имя свойства
+     * @return {Observer~FieldSettings|null} - настройки поля
      * */
-    getValues() {
-        return this.data
-    }
-
     getFieldSettings(name) {
         if(name) {
             return this.fieldSettings.get(name);
         }
+        return null;
     }
 
+    /**
+     * Запрет на распространение обновлений
+     * @param {string} [name] - имя поля
+     * @return {Observer} this
+     * */
     lockUpdate(name) {
         if(name) {
             if(this.has(name)) {
@@ -279,8 +352,14 @@ export default class Observer {
         } else {
             this._lock = true;
         }
+        return this;
     }
 
+    /**
+     * Снятие запрета на распространение обновлений
+     * @param {string} [name] - имя поля
+     * @return {Observer} this
+     * */
     unlockUpdate(name) {
         if(name) {
             if(this.has(name)) {
@@ -290,23 +369,35 @@ export default class Observer {
         } else {
             this._lock = false;
         }
+        return this;
+    }
+
+    /**
+     * Проверка
+     * @param {string} [name] - имя поля
+     * @return {Observer} this
+     * */
+    isLockUpdate(name) {
+        if(name) {
+            var settings = this.getFieldSettings(name);
+            return Boolean(settings.lockUpdate);
+        }
+        return this._lock;
     }
 
     /**
      * Рассылка обновлений
-     * @param {string} name - имя измененного свойства
+     * @param {string} [name] - имя измененного свойства
      * @return {Observer} this
      * */
     extendUpdate(name) {
-        if(!this._lock) {
+        var lock = this.isLockUpdate(name);
+        if(!lock) {
             if(name) {
                 var settings = this.getFieldSettings(name);
-                if(!settings.lockUpdate && this.dataHandlers.has(name)) {
-                    var cbs = this.dataHandlers.get(name);
-                    /**
-                     * @callback Observer~updateCallback
-                     * @param {*} value - значение
-                     * */
+                if(isArray(settings.cbs) && settings.cbs.length) {
+                    var cbs = settings.cbs;
+
                     each(cbs, (cb) => {
                         defer(cb, this.get(name), this.data);
                     })

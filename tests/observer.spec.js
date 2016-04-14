@@ -38,7 +38,9 @@ describe("Проверка базовой функциональности на�
     });
 
     it('Должен сбрасывать значение', function() {
-        observer.define('resetName', Any, 13);
+        observer.define('resetName', Any, {
+            defaultValue: 13
+        });
         observer.set('resetName', 'resetValue');
         expect(observer.get('resetName')).to.equal('resetValue');
         observer.reset();
@@ -70,9 +72,10 @@ describe("Проверка базовой функциональности на�
                 done()
             })
         })
+    });
 
+    it('При блокировке обновлений свойства, не должно распространяться ', function() {
 
-
-    })
+    });
 
 });
