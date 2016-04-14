@@ -100,4 +100,32 @@ describe("Проверка базовой функциональности на�
         })
     });
 
+    it('При добавлении колбека должна возвращаться функция для удаления', function(done) {
+
+        var fakeUpdateCb = chai.spy();
+        var fakeFieldUpdateCb = chai.spy();
+
+        var removeUpdate = observer.onUpdate(fakeUpdateCb);
+        var removeItemUpdate = observer.onUpdate('name', fakeFieldUpdateCb);
+
+        observer.set('name', 1);
+
+        defer(function() {
+            fakeUpdateCb.should.have.been.called();
+            fakeFieldUpdateCb.should.have.been.called();
+
+            expect(observer.get('name')).to.equal(1);
+            removeUpdate();
+            removeItemUpdate();
+            observer.set('name', 3);
+
+            defer(function() {
+                fakeUpdateCb.should.have.been.called.exactly(1);
+                fakeFieldUpdateCb.should.have.been.called.exactly(1);
+                expect(observer.get('name')).to.equal(3);
+                done()
+            })
+        })
+    });
+
 });

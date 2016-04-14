@@ -305,14 +305,20 @@ export default class Observer {
     removeUpdate(name, cb) {
         if(isFunction(name)) {
             remove(this.updateCbs, (updateCb) => {
-                return updateCb === cb;
+                if(updateCb === name) {
+                    console.log('updateCbs, Функция найдена');
+                    return true;
+                }
             })
         } else {
             if(this.has(name)) {
                 var settings = this.getFieldSettings(name);
                 if(isArray(settings.cbs) && settings.cbs.length) {
                     remove(settings.cbs, (updateCb) => {
-                        return updateCb === cb;
+                        if(updateCb === cb) {
+                            console.log('settings.cbs, Функция найдена');
+                            return true;
+                        }
                     })
                 }
 
