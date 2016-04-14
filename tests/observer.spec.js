@@ -5,15 +5,15 @@ import {defer} from 'lodash';
 
 chai.use(spyon);
 
-describe("Проверка базовой функциональности наблюдателя", function() {
+describe("Проверка базовой функциональности наблюдателя и базового типа ANY", function() {
 
     var observer = null;
-    before(function() {
+    beforeEach(function() {
         observer = new Observer();
+        observer.define('name', Any);
     });
 
     it('Должен создать свойство', function() {
-        observer.define('name');
         expect(observer.has('name')).to.be.true;
     });
 
@@ -23,12 +23,14 @@ describe("Проверка базовой функциональности на�
     });
 
     it('Должен заморживать свойство', function() {
+        observer.set('name', 'value');
         observer.freeze('name');
         observer.set('name', 'value1');
         expect(observer.get('name')).to.equal('value');
     });
 
     it('Должен размораживать свойство', function() {
+        observer.set('name', 'value');
         observer.freeze('name');
         observer.set('name', 'value1');
         expect(observer.get('name')).to.equal('value');
@@ -48,12 +50,8 @@ describe("Проверка базовой функциональности на�
     });
 
     it('При обновлении значения должно происходить вызов функции', function(done) {
-        var fakeUpdateCb = chai.spy(function(values) {
-            console.log('update observer', values)
-        });
-        var fakeFieldUpdateCb = chai.spy(function(value, values) {
-            console.log('update field name', value);
-        });
+        var fakeUpdateCb = chai.spy();
+        var fakeFieldUpdateCb = chai.spy();
 
         observer.onUpdate(fakeUpdateCb);
         observer.onUpdate('name', fakeFieldUpdateCb);
@@ -64,7 +62,7 @@ describe("Проверка базовой функциональности на�
             fakeUpdateCb.should.have.been.called();
             fakeFieldUpdateCb.should.have.been.called();
             // Если значение фильтра не изменилось, то оповещение происходить не должно
-            observer.set('int', 2);
+            observer.set('name', 2);
 
             defer(function() {
                 fakeUpdateCb.should.have.been.called.exactly(1);
@@ -74,8 +72,32 @@ describe("Проверка базовой функциональности на�
         })
     });
 
-    it('При блокировке обновлений свойства, не должно распространяться ', function() {
+    it('При блокировке обновлений свойства, не должно распространяться ', function(done) {
 
+        var fakeUpdateCb = chai.spy();
+        var fakeFieldUpdateCb = chai.spy();
+
+        observer.onUpdate(fakeUpdateCb);
+        observer.onUpdate('name', fakeFieldUpdateCb);
+
+        observer.set('name', 1);
+
+        defer(function() {
+            fakeUpdateCb.should.have.been.called();
+            fakeFieldUpdateCb.should.have.been.called();
+
+            expect(observer.get('name')).to.equal(1);
+
+            observer.lockUpdate('name');
+            observer.set('name', 3);
+
+            defer(function() {
+                fakeUpdateCb.should.have.been.called.exactly(1);
+                fakeFieldUpdateCb.should.have.been.called.exactly(1);
+                expect(observer.get('name')).to.equal(3);
+                done()
+            })
+        })
     });
 
 });

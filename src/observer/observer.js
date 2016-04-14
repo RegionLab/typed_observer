@@ -6,6 +6,7 @@ import {
     each,
     defer,
     remove,
+    noop
 } from 'lodash';
 
 import AnyType from '../types/any.js';
@@ -208,9 +209,10 @@ export default class Observer {
                                 value =  type.getValue(value);
                                 if(self.dataValues[name] != value) {
                                     self.dataValues[name] = value;
+                                    console.warn('OBSERVER', name, 'changed');
                                     self.filterVersion++;
                                     self.extendUpdate(name);
-                                }else {
+                                } else {
                                     console.warn('OBSERVER', name, 'not changed');
                                 }
                             } else {
@@ -256,7 +258,7 @@ export default class Observer {
      * @return {Observer} this
      * */
     set(name, value) {
-        if(this.has(name) && !isUndefined(value)) {
+        if(this.has(name)) {
             this.data[name] = value;
         }
         return this;
@@ -300,8 +302,22 @@ export default class Observer {
     }
 
 
-    removeUpdate(cb) {
+    removeUpdate(name, cb) {
+        if(isFunction(name)) {
+            remove(this.updateCbs, (updateCb) => {
+                return updateCb === cb;
+            })
+        } else {
+            if(this.has(name)) {
+                var settings = this.getFieldSettings(name);
+                if(isArray(settings.cbs) && settings.cbs.length) {
+                    remove(settings.cbs, (updateCb) => {
+                        return updateCb === cb;
+                    })
+                }
 
+            }
+        }
     }
 
     /**
@@ -316,6 +332,7 @@ export default class Observer {
         if(isFunction(name)) {
             cb = name;
             this.updateCbs.push(cb);
+            return this.removeUpdate.bind(this, cb)
         } else {
             if(this.has(name)) {
                 var settings  = this.getFieldSettings(name);
@@ -323,9 +340,10 @@ export default class Observer {
                     settings.cbs = [];
                 }
                 settings.cbs.push(cb);
+                return this.removeUpdate.bind(this, name, cb)
             }
         }
-        return this;
+        return noop;
     }
 
     /**
