@@ -305,20 +305,14 @@ export default class Observer {
     removeUpdate(name, cb) {
         if(isFunction(name)) {
             remove(this.updateCbs, (updateCb) => {
-                if(updateCb === name) {
-                    console.log('updateCbs, Функция найдена');
-                    return true;
-                }
+                return updateCb === name;
             })
         } else {
             if(this.has(name)) {
                 var settings = this.getFieldSettings(name);
                 if(isArray(settings.cbs) && settings.cbs.length) {
                     remove(settings.cbs, (updateCb) => {
-                        if(updateCb === cb) {
-                            console.log('settings.cbs, Функция найдена');
-                            return true;
-                        }
+                        return updateCb === cb;
                     })
                 }
 
@@ -330,6 +324,7 @@ export default class Observer {
      * Навешивает обработчик на обновления.
      * Если первым аргументов передается строка, то считаем что навешиваем обработчик на одно свойство,
      * Иначе считаем что обработчик навешивается на любое обновления.
+     *
      * @param {string|Observer~updateCallback} name - имя поля или функция обработчик
      * @param {Observer~updateCallback|Observer~updateItemCallback} [cb] - обработчик изменения поля
      * @return {Observer} this
@@ -354,6 +349,7 @@ export default class Observer {
 
     /**
      * Получение настроек свойства
+     *
      * @param {string} name - имя свойства
      * @return {Observer~FieldSettings|null} - настройки поля
      * */
@@ -366,6 +362,7 @@ export default class Observer {
 
     /**
      * Запрет на распространение обновлений
+     *
      * @param {string} [name] - имя поля
      * @return {Observer} this
      * */
@@ -383,6 +380,7 @@ export default class Observer {
 
     /**
      * Снятие запрета на распространение обновлений
+     *
      * @param {string} [name] - имя поля
      * @return {Observer} this
      * */
@@ -401,6 +399,7 @@ export default class Observer {
     /**
      * Проверка свойства на блокировку распространения обновления
      * Если имя свойства не указано, то вернется результат проверка блокировки наблюдателя
+     *
      * @param {string} [name] - имя свойства
      * @return {boolean}
      * */
@@ -414,6 +413,7 @@ export default class Observer {
 
     /**
      * Рассылка обновлений
+     *
      * @param {string} [name] - имя измененного свойства
      * @return {Observer} this
      * */
@@ -441,6 +441,9 @@ export default class Observer {
         return this;
     }
 
+    /**
+     * Удаление всех данных
+     * */
     destroy() {
         for(var name in this.data) {
             this.delete(name);
