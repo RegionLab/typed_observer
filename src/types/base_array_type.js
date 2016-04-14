@@ -3,8 +3,10 @@ import {
     isArray,
     isUndefined,
     isFunction,
-    noop
+    noop,
+    remove
 } from 'lodahs';
+
 import BaseType from './base_type.js';
 
 export default class BaseArrayObserver extends BaseType {
@@ -12,8 +14,8 @@ export default class BaseArrayObserver extends BaseType {
     /**
      * @constructor
      * @param {string} name - имя поля к которому привязан тип
-     * @param {Observer} observer - родительский observer
-     * @return {BaseType}
+     * @param {Observer} parentObserver - родительский observer
+     * @return {BaseArrayObserver}
      * */
     constructor(name, parentObserver) {
         super(name, parentObserver);
@@ -22,6 +24,8 @@ export default class BaseArrayObserver extends BaseType {
          * */
         this._array = [];
         this.updateItemCbs = {};
+        this.onArrayUpdate = this.updateArrayHandler.bind(this);
+        Array.observe(this._array, this.onArrayUpdate);
     }
 
     /**
@@ -32,8 +36,35 @@ export default class BaseArrayObserver extends BaseType {
     }
 
     removeOnUpdate(index, cb) {
-        if(this.updateItemCbs) {
+        if(this.updateItemCbs[index]) {
+            remove(this.updateItemCbs[index], (updateCb) => {
+                return updateCb === cb;
+            })
+        }
+    }
 
+    updateArrayHandler(events) {
+
+        super.notify();
+
+        _.each(events, (event) => {
+            this.notify(event.name);
+        });
+
+    }
+
+    get(index) {
+        if(this.length > index && this._array[index]) {
+            return this._array[index];
+        }
+        return null;
+    }
+
+    notify(index) {
+        if(isArray(this.updateItemCbs[index]) && this.updateItemCbs[index].length) {
+            each(this.updateItemCbs[index], (cb) => {
+                cb(this.get(index));
+            })
         }
     }
 
@@ -87,8 +118,8 @@ export default class BaseArrayObserver extends BaseType {
     }
 
     destroy() {
+        Array.observe(this._array, this.onArrayUpdate);
         this.clear();
-        Array.unobserve(this._array, this.bindedObserver);
     }
 
 }
