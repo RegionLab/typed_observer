@@ -1,4 +1,3 @@
-import 'lodahs';
 import Observer from '../observer/observer.js';
 
 /**

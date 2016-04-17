@@ -5,7 +5,7 @@ import {
     isFunction,
     noop,
     remove
-} from 'lodahs';
+} from 'lodash';
 
 import BaseType from './base_type.js';
 
@@ -118,7 +118,7 @@ export default class BaseArrayObserver extends BaseType {
     }
 
     destroy() {
-        Array.observe(this._array, this.onArrayUpdate);
+        Array.unobserve(this._array, this.onArrayUpdate);
         this.clear();
     }
 
