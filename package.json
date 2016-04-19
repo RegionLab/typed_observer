@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node_modules/.bin/karma start --browsers PhantomJS",
+    "build": "node_modules/.bin/webpack --config webpack.config.js",
     "docs": "node_modules/.bin/jsdoc --configure .jsdoc.json"
   },
   "author": "",
