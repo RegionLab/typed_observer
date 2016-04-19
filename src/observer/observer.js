@@ -117,6 +117,7 @@ export default class Observer {
                 console.error('Observer', name, 'Значение не валидно');
             }
         }
+        return this;
     }
 
     /**
@@ -226,6 +227,7 @@ export default class Observer {
 
             }
         }
+        return this;
     }
 
     /**
@@ -248,6 +250,7 @@ export default class Observer {
                 this.data[key] = settings.defaultValue;
             })
         }
+        return this;
     }
 
     /**
