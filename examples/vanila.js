@@ -67,31 +67,30 @@ var form = new Observer();
 
 form
     .onUpdate(function(e) {
-       console.log('new form values', e);
         requestAnimationFrame(function() {
             result.innerHTML = JSON.stringify(form.serialize(), null, '\t');
         });
     })
     .onUpdate('name', function(e) {
-        console.log('new value name', e);
+        name.value = e;
     })
     .onUpdate('lastName', function(e) {
-        console.log('new value lastName', e);
+        lastName.value = e;
     })
     .onUpdate('age', function(e) {
-        console.log('new value age', e);
+        age.value = e;
     });
 
-form.get('simple').getObserver().onUpdate('field', () => {
-    simpleField.value = form.get('simple').getField();
-}).onUpdate('field2', () => {
-    simpleField2.value = form.get('simple').getField2();
-})
+form.get('simple').getObserver()
+    .onUpdate('field', (e) => {
+        simpleField.value = e;
+    }).onUpdate('field2', (e) => {
+        simpleField2.value = e;
+    });
 
 function setValue(name, e) {
     form.set(name, e.target.value);
-    var value = form.get(name) ;
-    e.target.value = value != undefined ? value : '';
+    e.preventDefault();
 }
 
 function toggleFreeze(name, e) {
@@ -112,12 +111,12 @@ age.addEventListener('input', setValue.bind(null, 'age'));
 
 simpleField.addEventListener('input', function(e) {
     form.get('simple').setField(e.target.value);
-    e.preventEvent();
+    e.preventDefault();
 });
 
 simpleField2.addEventListener('input', function(e) {
     form.get('simple').setField2(e.target.value);
-    e.preventEvent();
+    e.preventDefault();
 });
 
 document.querySelector('#freezeName').onclick = toggleFreeze.bind(null, 'name');
