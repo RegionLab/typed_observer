@@ -10,6 +10,7 @@ import {
 } from 'lodash';
 
 import AnyType from '../types/any.js';
+import BaseType from '../types/base_type.js';
 
 /**
  * @namespace Observer
@@ -138,16 +139,32 @@ export default class Observer {
         return this;
     }
 
+    validate() {
+        var settings = null,
+            value = null,
+            validate = {};
+        for(var i in this.data) {
+            if(this.has(i)) {
+                settings = this.getFieldSettings(i);
+                validate[i] = !settings.type.isValid(this.get(i)) && settings.required
+            }
+        }
+        return true;
+    }
+
     /**
      * Проверка валидности данных исходя из правил валидации.
      * Если значение поля не валидно, то если поле является обязательным данные считаются невалидными.
      * @return {boolean}
      * */
     isValid() {
+        var settings = null,
+            value = null;
         for(var i in this.data) {
             if(this.has(i)) {
-                var settings = this.getFieldSettings(i);
-                var value = this.get(i);
+                settings = this.getFieldSettings(i),
+                value = this.get(i);
+
                 if(!settings.type.isValid(value) && settings.required) {
                     return false;
                 }
@@ -172,6 +189,7 @@ export default class Observer {
                 ret[i] = settings.type.getPureValue(value);
             }
         }
+        return ret;
     }
 
     /**
@@ -182,17 +200,24 @@ export default class Observer {
     define(name, type, settings) {
         if(!this.fieldSettings.has(name)) {
             type = type || AnyType;
+
             if(name && isObject(type)) {
 
                 // Инициализируем настройки
                 var settings = settings || {};
+                if(type.__proto__ === BaseType) { // по другому никак, хотя...
+                    type = new type(name, this);
+                    this.dataValues[name] = type;
+                }
                 if(settings.type) {
                     type = settings.type;
                 } else {
                     settings.type = type;
                 }
 
-                this.dataValues[name] = isFunction(settings.defaultValue) ? settings.defaultValue() : settings.defaultValue;
+                if(!this.dataValues[name]) {
+                    this.dataValues[name] = isFunction(settings.defaultValue) ? settings.defaultValue() : settings.defaultValue;
+                }
 
                 this.fieldSettings.set(name, settings);
 
@@ -274,7 +299,8 @@ export default class Observer {
      * */
     get(name) {
         if(name) {
-            if(this.data[name]) {
+            if(this.data.hasOwnProperty(name)) {
+                debugger;
                 return this.data[name];
             }
             return null;
@@ -334,9 +360,7 @@ export default class Observer {
      * */
     onUpdate(name, cb) {
         if(isFunction(name)) {
-            cb = name;
-            this.updateCbs.push(cb);
-            return this.removeUpdate.bind(this, cb)
+            this.updateCbs.push(name);
         } else {
             if(this.has(name)) {
                 var settings  = this.getFieldSettings(name);
@@ -344,10 +368,9 @@ export default class Observer {
                     settings.cbs = [];
                 }
                 settings.cbs.push(cb);
-                return this.removeUpdate.bind(this, name, cb)
             }
         }
-        return noop;
+        return this;
     }
 
     /**

@@ -1,0 +1,7 @@
+{
+  "name": "application-name",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "webpack --config webpack.config.example.js"
+  }
+}

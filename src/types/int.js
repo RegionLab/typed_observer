@@ -10,10 +10,10 @@
  * */
 export default {
     isValid(value) {
-        return !isNaN(+value)
+        return value !== undefined && window.isFinite(value)
     },
     getValue(value) {
-        return +value;
+        return value;
     },
     getPureValue(value) {
         return +value;
