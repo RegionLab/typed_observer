@@ -71,15 +71,6 @@ form
             result.innerHTML = JSON.stringify(form.serialize(), null, '\t');
         });
     })
-    .onUpdate('name', function(e) {
-        name.value = e;
-    })
-    .onUpdate('lastName', function(e) {
-        lastName.value = e;
-    })
-    .onUpdate('age', function(e) {
-        age.value = e;
-    });
 
 form.get('simple').getObserver()
     .onUpdate('field', (e) => {
@@ -90,6 +81,8 @@ form.get('simple').getObserver()
 
 function setValue(name, e) {
     form.set(name, e.target.value);
+    var value = form.get(name);
+    e.target.value = value == undefined ? "" : value;
     e.preventDefault();
 }
 

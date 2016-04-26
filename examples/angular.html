@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body ng-controller="Observer.Ctrl">
+<div>
+    <input ng-model="values.name" />
+    <button ng-click="toggleFreeze('name', $event)">Freeze</button>
+</div>
+<div>
+    <input ng-model="values.lastName" />
+    <button ng-click="toggleFreeze('lastName', $event)">Freeze</button>
+</div>
+<div>
+    <input ng-model="values.age" />
+    <button ng-click="toggleFreeze('age', $event)">Freeze</button>
+</div>
+<div>
+    <input ng-model="simple.field" />
+</div>
+<div>
+    <input ng-model="simple.field2" />
+</div>
+<pre id="result" ng-bind="result"></pre>
+<script src="build/angular.js" type="application/javascript"></script>
+</body>
+</html>
