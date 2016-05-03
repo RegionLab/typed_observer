@@ -205,7 +205,7 @@ export default class Observer {
 
                 // Инициализируем настройки
                 var settings = settings || {};
-                if(type.__proto__ === BaseType) { // по другому никак, хотя...
+                if(isFunction(type)/*.__proto__ === BaseType*/) { // по другому никак, хотя...
                     type = new type(name, this);
                     this.dataValues[name] = type;
                 }

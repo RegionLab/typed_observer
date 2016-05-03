@@ -1,6 +1,6 @@
 {
   "name": "typed_observer",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Simple Observer with validation when apply value",
   "main": "index.js",
   "scripts": {
