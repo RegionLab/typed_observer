@@ -300,7 +300,6 @@ export default class Observer {
     get(name) {
         if(name) {
             if(this.data.hasOwnProperty(name)) {
-                debugger;
                 return this.data[name];
             }
             return null;
